@@ -55,9 +55,7 @@ static void debug_print_ipv4(
     const unsigned int port,
     const unsigned int count)
 {
-    LOG_DBG(
-        "%s %s:%hu (%u bytes)", str, inet_ntoa((struct in_addr *)&addr),
-        ntohs(port), count);
+    LOG_DBG("%s %s:%hu (%u bytes)", str, inet_ntoa(*addr), ntohs(port), count);
 }
 
 /**
@@ -482,19 +480,31 @@ void bip_set_interface(const char *ifname)
                     AF_INET, &BIP_Broadcast_Addr, hr_addr, NET_IPV4_ADDR_LEN));
             return;
         }
+        struct in_addr *global_addr =
+            net_if_ipv4_get_global_addr(iface, NET_ADDR_PREFERRED);
+        if (global_addr != NULL) {
+            LOG_INF(
+                "Found existing IPv4 manual address: %s",
+                net_addr_ntop(
+                    AF_INET, global_addr, hr_addr, NET_IPV4_ADDR_LEN));
+        } else {
+            global_addr = NULL;
+            LOG_INF("No existing IPv4 address found");
+
 #if defined(CONFIG_NET_DHCPV4)
-        LOG_INF("Starting DHCP to obtain IP address");
-        net_dhcpv4_start(iface);
+            LOG_INF("Starting DHCP to obtain IP address");
+            net_dhcpv4_start(iface);
 #endif
 
-        LOG_INF("Waiting to obtain IP address");
-        wait_for_net_event(iface, NET_EVENT_IPV4_ADDR_ADD);
-
+            LOG_INF("Waiting to obtain IP address");
+            wait_for_net_event(iface, NET_EVENT_IPV4_ADDR_ADD);
+        }
 #if defined(CONFIG_BACDL_BIP_ADDRESS_INDEX)
         LOG_INF(
             "Config unicast address %d/%d", CONFIG_BACDL_BIP_ADDRESS_INDEX,
             NET_IF_MAX_IPV4_ADDR - 1);
         index = CONFIG_BACDL_BIP_ADDRESS_INDEX;
+
 #else
         int i;
         char hr_addr[NET_IPV4_ADDR_LEN];
