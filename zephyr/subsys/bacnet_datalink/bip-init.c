@@ -44,29 +44,6 @@ static struct in_addr BIP_Address;
 /* IP broadcast address - stored here in network byte order */
 static struct in_addr BIP_Broadcast_Addr;
 
-/* Used by inet_ntoa */
-#if CONFIG_BACNETSTACK_LOG_LEVEL
-static char ipv4_addr_str[16] = { 0 };
-#else
-static char ipv4_addr_str[] = "";
-#endif
-
-/**
- * @brief Return a string representation of an IPv4 address
- * @param a - IPv4 address
- * @return Pointer to global string
- */
-char *inet_ntoa(struct in_addr *a)
-{
-    if (IS_ENABLED(CONFIG_BACNETSTACK_LOG_LEVEL)) {
-        snprintf(
-            ipv4_addr_str, sizeof(ipv4_addr_str), "%d.%d.%d.%d", a->s4_addr[0],
-            a->s4_addr[1], a->s4_addr[2], a->s4_addr[3]);
-    }
-
-    return &ipv4_addr_str[0];
-}
-
 /**
  * @brief Print the IPv4 address with debug info
  * @param str - debug info string
@@ -324,8 +301,8 @@ uint16_t bip_receive(
 
     /* see if there is a packet for us */
     if (zsock_select(max + 1, &read_fds, NULL, NULL, &select_timeout) > 0) {
-        socket =
-            FD_ISSET(BIP_Socket, &read_fds) ? BIP_Socket : BIP_Broadcast_Socket;
+        socket = ZSOCK_FD_ISSET(BIP_Socket, &read_fds) ? BIP_Socket
+                                                       : BIP_Broadcast_Socket;
         received_bytes = zsock_recvfrom(
             socket, (char *)&npdu[0], max_npdu, 0, (struct sockaddr *)&sin,
             &sin_len);
